@@ -3,7 +3,9 @@ dotenv.config();   // MUST be first
 
 import express from "express";
 import router from "./Routes.js";
+import { connectDB } from "./Database/Main.js";
 
+connectDB();
 const app = express();
 const port = 3000;
 

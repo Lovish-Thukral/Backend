@@ -1,6 +1,6 @@
 import Groq from "groq-sdk";
 import dotenv from "dotenv";
-dotenv.config();   // MUST be first
+dotenv.config();
 
 
 const chatmodel = new Groq({

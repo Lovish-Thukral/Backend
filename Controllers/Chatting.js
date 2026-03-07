@@ -26,3 +26,7 @@ export async function ChatCompletion(req, res) {
     res.status(500).json({ error: "Failed to create chat completion" });
   }
 }
+
+export async function AddMessageHistory(req, res) { 
+}
+
