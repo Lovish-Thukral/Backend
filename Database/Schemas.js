@@ -1,20 +1,9 @@
 import mongoose from "mongoose";
 
-/* ---------------- CHAT MESSAGE ---------------- */
-
 const chatSchema = new mongoose.Schema(
 {
-  role: {
-    type: String,
-    enum: ["user", "assistant", "system"],
-    required: true
-  },
-
-  message: {
-    type: String,
-    required: true
-  },
-
+  role: String,
+  message: String,
   time: {
     type: Date,
     default: Date.now
@@ -23,21 +12,16 @@ const chatSchema = new mongoose.Schema(
 { _id: false }
 );
 
-/* ---------------- RIASEC SCORES ---------------- */
-
 const riasecSchema = new mongoose.Schema(
 {
-  R: { type: Number, default: 0 }, // Realistic
-  I: { type: Number, default: 0 }, // Investigative
-  A: { type: Number, default: 0 }, // Artistic
-  S: { type: Number, default: 0 }, // Social
-  E: { type: Number, default: 0 }, // Enterprising
-  C: { type: Number, default: 0 }  // Conventional
+  R: { type: Number, default: 0 },
+  I: { type: Number, default: 0 },
+  A: { type: Number, default: 0 },
+  S: { type: Number, default: 0 },
+  C: { type: Number, default: 0 }
 },
 { _id: false }
 );
-
-/* ---------------- SIFA SCORES ---------------- */
 
 const sifaSchema = new mongoose.Schema(
 {
@@ -49,20 +33,10 @@ const sifaSchema = new mongoose.Schema(
 { _id: false }
 );
 
-/* ---------------- ROADMAP HISTORY ---------------- */
-
 const roadMapSchema = new mongoose.Schema(
 {
-  topic: {
-    type: String,
-    required: true
-  },
-
-  level: {
-    type: Number,
-    required: true
-  },
-
+  topic: String,
+  level: Number,
   completed: {
     type: Boolean,
     default: false
@@ -71,19 +45,10 @@ const roadMapSchema = new mongoose.Schema(
 { _id: false }
 );
 
-/* ---------------- CURRENT LEVEL DATA ---------------- */
-
 const currentLevelSchema = new mongoose.Schema(
 {
-  level: {
-    type: Number,
-    default: 1
-  },
-
-  topic: {
-    type: String
-  },
-
+  level: Number,
+  topic: String,
   progress: {
     type: Number,
     default: 0
@@ -91,8 +56,6 @@ const currentLevelSchema = new mongoose.Schema(
 },
 { _id: false }
 );
-
-/* ---------------- USER SCHEMA ---------------- */
 
 const userSchema = new mongoose.Schema(
 {
@@ -108,14 +71,11 @@ const userSchema = new mongoose.Schema(
     required: true
   },
 
-  /* CHAT HISTORY */
-
+  // ARRAY OF CHAT SESSIONS (each session = array of messages)
   chatHistory: {
-    type: [chatSchema],
+    type: [[chatSchema]],
     default: []
   },
-
-  /* PERSONALITY SCORES */
 
   RIASEC_vals: {
     type: riasecSchema,
@@ -127,21 +87,15 @@ const userSchema = new mongoose.Schema(
     default: () => ({})
   },
 
-  /* ROADMAP TRACKING */
-
   roadmapHistory: {
     type: [roadMapSchema],
     default: []
   },
 
-  /* CURRENT LEARNING UNIT */
-
   currentUnit: {
-    type: String,
-    default: null
+    type: [String],
+    default: []
   },
-
-  /* CURRENT LEVEL DATA */
 
   currentLevelData: {
     type: currentLevelSchema,
@@ -152,8 +106,6 @@ const userSchema = new mongoose.Schema(
 {
   timestamps: true
 });
-
-/* ---------------- MODEL ---------------- */
 
 const User = mongoose.model("User", userSchema);
 
