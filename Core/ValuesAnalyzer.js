@@ -3,15 +3,39 @@ import User from "../Database/Schemas.js";
 
 function splitResult(resultString) {
 
-  // remove <think>...</think>
-  const cleaned = resultString.replace(/<think>[\s\S]*?<\/think>/g, "").trim()
+  // remove <think>...</think> blocks if the model outputs them
+  const cleaned = resultString
+    .replace(/<think>[\s\S]*?<\/think>/g, "")
+    .trim()
 
-  const parsed = JSON.parse(cleaned)
+  let parsed
+
+  try {
+    parsed = JSON.parse(cleaned)
+  } catch (err) {
+    throw new Error("Invalid JSON returned by model")
+  }
 
   return {
-    riasec: parsed.RIASEC,
-    sifa: parsed.SIFA
+    riasec: parsed.RIASEC || {},
+    sifa: parsed.SIFA || {},
+    skills: parsed.Skills || {}
   }
+}
+
+function mergeSkills(prevSkills, Skills) {
+  const merged = { ...prevSkills };
+
+  for (const [skill, level] of Object.entries(Skills)) {
+    if (merged[skill] !== undefined) {
+      // take mean of both values
+      merged[skill] = (merged[skill] + level) / 2;
+    } else {
+      merged[skill] = level;
+    }
+  }
+
+  return merged;
 }
 
 function mean(newVal, prevVal) {
@@ -25,7 +49,7 @@ class ValuesAnalyzer {
   async analyzeValues(userInput) {
     const prompt = `System Prompt (Chat Personality Analysis)
 
-Analyze a conversation between a user and assistant to estimate the user's interests and thinking style.
+Analyze a conversation between a user and assistant to estimate the user's interests, thinking style, and skills.
 
 Score the user using two models:
 
@@ -43,16 +67,39 @@ SIFA
 - Feeling: people-focused, values impact
 - Analytical: logical reasoning
 
-Instructions
-1. Focus mainly on the user's messages.
-2. Identify patterns in interests and thinking style.
-3. Score each dimension from 0–100.
-4. Use the entire conversation.
-5. Make Mean of Prevoius Scores: If the user has multiple messages, consider the overall pattern and average out the scores across messages to get a more accurate representation of their interests and thinking style.
-6. Output only the JSON object with RIASEC and SIFA scores, no explanations, nothing else.
+Extract skills ONLY if the user clearly states they possess or practice that skill.
 
-Output
-Return only one JSON object:
+Valid evidence examples:
+- "I know Python"
+- "I have built APIs"
+- "I worked on debugging code"
+- "I manage teams in college events"
+
+Do NOT extract skills from:
+- interests ("I like programming")
+- curiosity ("I want to learn AI")
+- suggestions given by the assistant
+- career discussions without personal experience
+
+Skill Levels
+1 = beginner (learning or limited practice)
+2 = intermediate (regular usage or projects)
+3 = strong ability (deep experience, multiple projects, or professional use)
+
+Strict Rule
+Only include skills that the **user explicitly mentions having or doing**.
+If no skills are clearly stated, return an empty Skills object.
+
+Instructions
+1. Focus mainly on the **user's messages**.
+2. Identify patterns in interests and thinking style.
+3. Score RIASEC and SIFA from **0–100**.
+4. Extract relevant **skills from the conversation**.
+5. Assign each skill a **level from 1–3**.
+6. If the user has multiple messages, consider the **overall pattern and average tendencies**.
+7. Output **only the JSON object**.
+
+Output Format
 
 {
   "RIASEC": {
@@ -68,13 +115,16 @@ Return only one JSON object:
     "Intuitive": number,
     "Feeling": number,
     "Analytical": number
+  },
+  "Skills": {
+    "skill_name": level
   }
 }
 
 Examples
 
 Example 1
-user: RIASEC": { "Realistic": 38, "Investigative": 50, "Artistic": 30, "Social": 10, "Enterprising": 5, "Conventional": 85}, "SIFA": { "Sensing": 40, "Intuitive": 55, "Feeling": 15, "Analytical": 92 }.
+
 User: I enjoy solving programming problems and understanding how systems work.  
 Assistant: What part of programming do you like most?  
 User: I like figuring out why something isn't working and debugging it.  
@@ -83,7 +133,8 @@ User: Yes, especially algorithms and system design. I enjoy breaking big problem
 Assistant: Do you enjoy research or reading technical documentation?  
 User: Definitely. I spend time reading about how databases and networks work.
 
-Result:
+Result
+
 {
   "RIASEC": {
     "Realistic": 30,
@@ -98,11 +149,18 @@ Result:
     "Intuitive": 55,
     "Feeling": 15,
     "Analytical": 92
+  },
+  "Skills": {
+    "Programming": 2,
+    "Debugging": 2,
+    "Algorithms": 2,
+    "System Design": 1,
+    "Technical Research": 2
   }
 }
 
 Example 2
-user: RIASEC": { "Realistic": 30, "Investigative": 90, "Artistic": 20, "Social": 15, "Enterprising": 35, "Conventional": 55}, "SIFA": { "Sensing": 40, "Intuitive": 55, "Feeling": 15, "Analytical": 92 }.
+
 User: I like organizing events in college and managing teams during competitions.  
 Assistant: Do you enjoy leading people?  
 User: Yes, I enjoy planning things and making sure everything runs smoothly.  
@@ -111,7 +169,8 @@ User: Scheduling tasks, coordinating with people, and pitching ideas for project
 Assistant: Do you enjoy persuading people about your ideas?  
 User: Yes, convincing people and building something together feels rewarding.
 
-Result:
+Result
+
 {
   "RIASEC": {
     "Realistic": 20,
@@ -126,6 +185,13 @@ Result:
     "Intuitive": 50,
     "Feeling": 55,
     "Analytical": 45
+  },
+  "Skills": {
+    "Team Management": 2,
+    "Event Planning": 2,
+    "Leadership": 2,
+    "Coordination": 2,
+    "Persuasion": 1
   }
 }`;
 
@@ -157,13 +223,14 @@ Result:
 
   async StoreValues(data) {
 
-  const { name, RIASECval, SAFIAVAL, prevRIASECval, prevSAFIAVAl } = data;
+  const { name, RIASECval, SAFIAVAL, prevRIASECval, prevSAFIAVAl, Skills, prevSkills } = data;
 
   const riasecMapped = {
     R: mean(RIASECval.Realistic, prevRIASECval?.Realistic),
     I: mean(RIASECval.Investigative, prevRIASECval?.Investigative),
     A: mean(RIASECval.Artistic, prevRIASECval?.Artistic),
     S: mean(RIASECval.Social, prevRIASECval?.Social),
+    E :mean(RIASECval.Enterprising, prevRIASECval?.Enterprising),
     C: mean(RIASECval.Conventional, prevRIASECval?.Conventional)
   };
 
@@ -174,12 +241,16 @@ Result:
     A: mean(SAFIAVAL.Analytical, prevSAFIAVAl?.Analytical)
   };
 
+  const mergedSkills = mergeSkills(prevSkills || {}, Skills);
+  console.log(mergedSkills);
+
   const updatedUser = await User.findOneAndUpdate(
     { name },
     {
       $set: {
         RIASEC_vals: riasecMapped,
-        SIFA_vals: sifaMapped
+        SIFA_vals: sifaMapped,
+        skills: mergedSkills
       }
     },
     { new: true }
@@ -190,6 +261,6 @@ Result:
   }
 
   return updatedUser;
-}
-}
+}}
+
 export default ValuesAnalyzer;

@@ -57,6 +57,15 @@ const currentLevelSchema = new mongoose.Schema(
 { _id: false }
 );
 
+const skillsSchema = new mongoose.Schema(
+{
+  type: Map,
+  of: Number,
+  default: {}
+},
+{ _id: false }
+);
+
 const userSchema = new mongoose.Schema(
 {
   name: {
@@ -71,7 +80,6 @@ const userSchema = new mongoose.Schema(
     required: true
   },
 
-  // ARRAY OF CHAT SESSIONS (each session = array of messages)
   chatHistory: {
     type: [[chatSchema]],
     default: []
@@ -85,6 +93,12 @@ const userSchema = new mongoose.Schema(
   SIFA_vals: {
     type: sifaSchema,
     default: () => ({})
+  },
+
+  skills: {
+    type: Map,
+    of: Number,
+    default: {}
   },
 
   roadmapHistory: {

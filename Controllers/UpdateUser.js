@@ -2,7 +2,7 @@ import ValuesAnalyzer from "../Core/ValuesAnalyzer.js";
 import User from "../Database/Schemas.js";
 
 export async function UpdateScoringVals(req, res) {
-    const {messages, name, prevRIASECval, prevSAFIAVAl} = req.body;
+    const {messages, name, prevRIASECval, prevSAFIAVAl, PrevSKills} = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Invalid messages format" });
     }
@@ -13,8 +13,8 @@ export async function UpdateScoringVals(req, res) {
         
         const analyzer = new ValuesAnalyzer();
         const values = await analyzer.analyzeValues(messages);
-        console.log(values.riasec, values.sifa)
-        const response = await analyzer.StoreValues({ name, RIASECval: values.riasec, SAFIAVAL: values.sifa, prevRIASECval, prevSAFIAVAl });
+        console.log(values.riasec, values.sifa, values.skills);
+        const response = await analyzer.StoreValues({ name, RIASECval: values.riasec, SAFIAVAL: values.sifa, prevRIASECval, prevSAFIAVAl, prevSkills: PrevSKills, Skills: values.skills });
         res.json({ message: "Values analyzed and stored successfully", response });
     } catch (error) {
         console.error(error);
@@ -23,7 +23,7 @@ export async function UpdateScoringVals(req, res) {
 }
 
 export async function AddMessageHistory(req, res) {
-  const { messages, name } = req.body;
+  const { messages, name} = req.body;
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: "Invalid messages format" });
