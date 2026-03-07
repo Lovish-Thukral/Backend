@@ -1,14 +1,24 @@
-import chatmodel from "./CoreModels";
-import User from "../Database/Schemas";
-
+import chatmodel from "./CoreModels.js";
+import User from "../Database/Schemas.js";
 
 function splitResult(resultString) {
-  const parsed = JSON.parse(resultString);
 
-  const riasec = parsed.RIASEC;
-  const sifa = parsed.SIFA;
+  // remove <think>...</think>
+  const cleaned = resultString.replace(/<think>[\s\S]*?<\/think>/g, "").trim()
 
-  return { riasec, sifa };
+  const parsed = JSON.parse(cleaned)
+
+  return {
+    riasec: parsed.RIASEC,
+    sifa: parsed.SIFA
+  }
+}
+
+function mean(newVal, prevVal) {
+  if (prevVal === undefined) {
+    return newVal;
+  }
+  return Math.round((newVal + prevVal) / 2);
 }
 
 class ValuesAnalyzer {
@@ -39,7 +49,7 @@ Instructions
 3. Score each dimension from 0–100.
 4. Use the entire conversation.
 5. Make Mean of Prevoius Scores: If the user has multiple messages, consider the overall pattern and average out the scores across messages to get a more accurate representation of their interests and thinking style.
-6. Output only the JSON object with RIASEC and SIFA scores, no explanations.
+6. Output only the JSON object with RIASEC and SIFA scores, no explanations, nothing else.
 
 Output
 Return only one JSON object:
@@ -121,11 +131,22 @@ Result:
 
     try {
       const response = await chatmodel.chat.completions.create({
-        model: "DeepSeek-r1-distill-qwen-32b",
-        messages: [{ role: "system", content: prompt }],
+        messages: [{ role: "system", content: prompt }, ...userInput ],
+        model: "qwen/qwen3-32b",
+        temperature: 0.6,
+        max_completion_tokens: 8096,
+        top_p: 0.95,
+        stream: true,
+        reasoning_effort: "default",
+        stop: null,
       });
-
-      const content = response.choices[0].message.content;
+      let content = "";
+      for await (const part of response) {
+        const text = part.choices[0].delta.content;
+        if (text) {
+          content += text;
+        }
+      }
       const values = splitResult(content);
       return values;
     } catch (error) {
@@ -134,22 +155,41 @@ Result:
     }
   }
 
-async StoreValues(data) {
-  const { userid, RIASECval, SAFIAVAL } = data;
+  async StoreValues(data) {
 
-  const updatedUser = await User.findByIdAndUpdate(
-    userid,
+  const { name, RIASECval, SAFIAVAL, prevRIASECval, prevSAFIAVAl } = data;
+
+  const riasecMapped = {
+    R: mean(RIASECval.Realistic, prevRIASECval?.Realistic),
+    I: mean(RIASECval.Investigative, prevRIASECval?.Investigative),
+    A: mean(RIASECval.Artistic, prevRIASECval?.Artistic),
+    S: mean(RIASECval.Social, prevRIASECval?.Social),
+    C: mean(RIASECval.Conventional, prevRIASECval?.Conventional)
+  };
+
+  const sifaMapped = {
+    S: mean(SAFIAVAL.Sensing, prevSAFIAVAl?.Sensing),
+    I: mean(SAFIAVAL.Intuitive, prevSAFIAVAl?.Intuitive),
+    F: mean(SAFIAVAL.Feeling, prevSAFIAVAl?.Feeling),
+    A: mean(SAFIAVAL.Analytical, prevSAFIAVAl?.Analytical)
+  };
+
+  const updatedUser = await User.findOneAndUpdate(
+    { name },
     {
-      RIASEC_vals: RIASECval,
-      SIFA_vals: SAFIAVAL
+      $set: {
+        RIASEC_vals: riasecMapped,
+        SIFA_vals: sifaMapped
+      }
     },
     { new: true }
   );
-    if (!updatedUser) {
-        throw new Error("User not found");
-    }
-    return updatedUser;
-}
 
+  if (!updatedUser) {
+    throw new Error("User not found");
+  }
+
+  return updatedUser;
+}
 }
 export default ValuesAnalyzer;
