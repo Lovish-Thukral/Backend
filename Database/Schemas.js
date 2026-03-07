@@ -1,125 +1,131 @@
 import mongoose from "mongoose";
 
+// Chat messages inside sessions
 const chatSchema = new mongoose.Schema(
-{
-  role: String,
-  message: String,
-  time: {
-    type: Date,
-    default: Date.now
-  }
-},
-{ _id: false }
+  {
+    role: String,
+    message: String,
+    time: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  { _id: false }
 );
 
+// RIASEC scores
 const riasecSchema = new mongoose.Schema(
-{
-  R: { type: Number, default: 0 },
-  I: { type: Number, default: 0 },
-  A: { type: Number, default: 0 },
-  S: { type: Number, default: 0 },
-  C: { type: Number, default: 0 }
-},
-{ _id: false }
+  {
+    R: { type: Number, default: 0 },
+    I: { type: Number, default: 0 },
+    A: { type: Number, default: 0 },
+    S: { type: Number, default: 0 },
+    E: { type: Number, default: 0 },
+    C: { type: Number, default: 0 }
+  },
+  { _id: false }
 );
 
+// SIFA scores
 const sifaSchema = new mongoose.Schema(
-{
-  S: { type: Number, default: 0 },
-  I: { type: Number, default: 0 },
-  F: { type: Number, default: 0 },
-  A: { type: Number, default: 0 }
-},
-{ _id: false }
+  {
+    S: { type: Number, default: 0 },
+    I: { type: Number, default: 0 },
+    F: { type: Number, default: 0 },
+    A: { type: Number, default: 0 }
+  },
+  { _id: false }
 );
 
-const roadMapSchema = new mongoose.Schema(
-{
-  topic: String,
-  level: Number,
-  completed: {
-    type: Boolean,
-    default: false
-  }
-},
-{ _id: false }
+
+// Roadmap chapter
+const chapterSchema = new mongoose.Schema(
+  {
+    day: Number,
+    title: String,
+    focus: String,
+    tasks: [String],
+    completed : {
+      type: Boolean,
+      default: false
+    }
+  },
+  { _id: false }
 );
 
-const currentLevelSchema = new mongoose.Schema(
-{
-  level: Number,
-  topic: String,
-  progress: {
-    type: Number,
-    default: 0
-  }
-},
-{ _id: false }
+// Roadmap unit
+const unitSchema = new mongoose.Schema(
+  {
+    unit_number: Number,
+    unit_title: String,
+    chapters: [chapterSchema]
+  },
+  { _id: false }
 );
 
-const skillsSchema = new mongoose.Schema(
-{
-  type: Map,
-  of: Number,
-  default: {}
-},
-{ _id: false }
+
+
+// Entire roadmap
+const roadmapSchema = new mongoose.Schema(
+  {
+    topic: { type: String, required: true },
+    progress: { type: Number, default: 0 },
+    units: { type: [unitSchema], default: [] }
+  },
+  { _id: false }
 );
 
+// Main user schema
 const userSchema = new mongoose.Schema(
-{
-  name: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true
-  },
+  {
+    name: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true
+    },
 
-  password: {
-    type: String,
-    required: true
-  },
+    password: {
+      type: String,
+      required: true
+    },
 
-  chatHistory: {
-    type: [[chatSchema]],
-    default: []
-  },
+    // Array of chat sessions (each session = array of messages)
+    chatHistory: {
+      type: [[chatSchema]],
+      default: []
+    },
 
-  RIASEC_vals: {
-    type: riasecSchema,
-    default: () => ({})
-  },
+    RIASEC_vals: {
+      type: riasecSchema,
+      default: () => ({})
+    },
 
-  SIFA_vals: {
-    type: sifaSchema,
-    default: () => ({})
-  },
+    SIFA_vals: {
+      type: sifaSchema,
+      default: () => ({})
+    },
 
-  skills: {
-    type: Map,
-    of: Number,
-    default: {}
-  },
+    roadmapHistory: {
+      type: [roadmapSchema],
+      default: []
+    },
+    
+    skills: { 
+      type: Map, 
+      of: Number,
+      default: {}
+    },
 
-  roadmapHistory: {
-    type: [roadMapSchema],
-    default: []
+    currentUnit: {
+      type: [String],
+      default: []
+    },
   },
-
-  currentUnit: {
-    type: [String],
-    default: []
-  },
-
-  currentLevelData: {
-    type: currentLevelSchema,
-    default: () => ({})
+  {
+    timestamps: true
   }
-
-},
-{
-  timestamps: true
-});
+);
 
 const User = mongoose.model("User", userSchema);
 

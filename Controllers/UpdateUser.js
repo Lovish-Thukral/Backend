@@ -1,4 +1,4 @@
-import ValuesAnalyzer from "../Core/ValuesAnalyzer.js";
+import Analyzer from "../Core/Analyzer.js";
 import User from "../Database/Schemas.js";
 
 export async function UpdateScoringVals(req, res) {
@@ -11,10 +11,10 @@ export async function UpdateScoringVals(req, res) {
     }
     try {
         
-        const analyzer = new ValuesAnalyzer();
-        const values = await analyzer.analyzeValues(messages);
+        const analyzer = new Analyzer();
+        const values = await analyzer.analyzeSkillValues(messages);
         console.log(values.riasec, values.sifa, values.skills);
-        const response = await analyzer.StoreValues({ name, RIASECval: values.riasec, SAFIAVAL: values.sifa, prevRIASECval, prevSAFIAVAl, prevSkills: PrevSKills, Skills: values.skills });
+        const response = await analyzer.StoreSkillValues({ name, RIASECval: values.riasec, SAFIAVAL: values.sifa, prevRIASECval, prevSAFIAVAl, prevSkills: PrevSKills, Skills: values.skills });
         res.json({ message: "Values analyzed and stored successfully", response });
     } catch (error) {
         console.error(error);

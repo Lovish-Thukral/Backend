@@ -38,6 +38,19 @@ function mergeSkills(prevSkills, Skills) {
   return merged;
 }
 
+function parseRoadmapData(rawText) {
+  try {
+    const jsonStartIndex = rawText.indexOf('{');
+    if (jsonStartIndex === -1) throw new Error("No JSON block found");
+
+    const jsonOnly = rawText.slice(jsonStartIndex).trim();
+    return JSON.parse(jsonOnly);
+  } catch (err) {
+    console.error("Failed to parse roadmap data:", err);
+    return null;
+  }
+}
+
 function mean(newVal, prevVal) {
   if (prevVal === undefined) {
     return newVal;
@@ -45,8 +58,8 @@ function mean(newVal, prevVal) {
   return Math.round((newVal + prevVal) / 2);
 }
 
-class ValuesAnalyzer {
-  async analyzeValues(userInput) {
+class Analyzer {
+  async analyzeSkillValues(userInput) {
     const prompt = `System Prompt (Chat Personality Analysis)
 
 Analyze a conversation between a user and assistant to estimate the user's interests, thinking style, and skills.
@@ -221,7 +234,7 @@ Result
     }
   }
 
-  async StoreValues(data) {
+  async StoreSkillValues(data) {
 
   const { name, RIASECval, SAFIAVAL, prevRIASECval, prevSAFIAVAl, Skills, prevSkills } = data;
 
@@ -261,6 +274,108 @@ Result
   }
 
   return updatedUser;
-}}
+}
 
-export default ValuesAnalyzer;
+async createRoadmap(data) {
+
+  const { goal, RIASECval, SAFIAVAL, Skills } = data;
+
+  const field_query = goal?.field_query;
+  const days = goal?.days;
+
+  const RIASEC_vals = RIASECval;
+  const SIFA_vals = SAFIAVAL;
+  const skills = Skills;
+
+  if (!RIASEC_vals || !SIFA_vals || !skills) {
+    throw new Error("Missing required user profile fields.");
+  }
+
+  if (!field_query || typeof field_query !== "string" || !field_query.trim()) {
+    throw new Error("field_query must be a non-empty string.");
+  }
+
+  if (!Number.isInteger(days) || days < 5 || days > 365) {
+    throw new Error("days must be an integer between 5 and 365.");
+  }
+
+  const prompt = `You are an AI Learning Planner. Generate a personalized learning roadmap as JSON only — no prose, no markdown.
+
+INPUT
+${JSON.stringify(
+  { field_query, days, RIASEC: RIASEC_vals, SIFA: SIFA_vals, skills },
+  null,
+  2
+)}
+
+PROFILE RULES
+- Top 2–3 RIASEC values determine learning direction
+- Existing skills (1–3) skip basics or increase difficulty
+- SIFA style controls learning approach:
+  Analytical → structured progression
+  Sensing → practical tasks
+  Intuitive → conceptual exploration
+  Feeling → collaborative projects
+
+ROADMAP RULES
+- Units must contain 5–10 chapters
+- Total chapters = ${days}
+- Each chapter = 1 learning day
+- Progression: Beginner → Intermediate → Advanced
+
+ALTERNATIVES
+Suggest 2 alternative fields aligned with the user's strengths.
+
+OUTPUT JSON
+{
+  "requested_field": "${field_query}",
+  "recommended_alternatives": ["field_1","field_2"],
+  "total_days": ${days},
+  "units": [
+    {
+      "unit_number": 1,
+      "unit_title": "string",
+      "chapters": [
+        { "day": 1, "title": "string", "focus": "specific task" }
+      ]
+    }
+  ]
+}
+
+HARD RULES
+- total chapters must equal ${days}
+- each unit 5–10 chapters
+- return JSON only`;
+
+  const response = await chatmodel.chat.completions.create({
+    model: "qwen/qwen3-32b",
+    messages: [{ role: "system", content: prompt }],
+    temperature: 0.6,
+    max_completion_tokens: 4096,
+    top_p: 0.95
+  });
+
+  const roadmapData = parseRoadmapData(response.choices[0].message.content);
+  if (!roadmapData) {
+    throw new Error("Failed to parse roadmap data");
+  }
+
+  return roadmapData;
+}
+
+async storeRoadmap(name, roadmap) {
+  const updatedUser = await User.findOneAndUpdate(
+    { name },
+    { $set: { roadmap } },
+    { new: true }
+  );
+
+  if (!updatedUser) {
+    throw new Error("User not found");
+  }
+
+  return updatedUser; }
+
+}
+
+export default Analyzer;
