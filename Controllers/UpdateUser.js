@@ -25,6 +25,7 @@ export async function UpdateScoringVals(req, res) {
 export async function AddMessageHistory(req, res) {
   const { messages, name} = req.body;
 
+  console.log(messages, typeof(messages))
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: "Invalid messages format" });
   }

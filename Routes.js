@@ -6,6 +6,8 @@ import { CreateRoadmap } from "./Controllers/Roadmap.js";
 import { MarkComplete } from "./Controllers/Roadmap.js";
 import { GetProgress } from "./Controllers/Roadmap.js";
 import { FetchTasks } from "./Controllers/FetchTasks.js";
+import { AddMessageHistory } from "./Controllers/UpdateUser.js";
+import { RefreshUser } from "./Controllers/Login.js";
 const router = Router();
 
 router.post('/Chat', ChatCompletion);
@@ -15,5 +17,7 @@ router.post("/createRoadmap", CreateRoadmap);
 router.post("/markComplete", MarkComplete);
 router.post("/getProgress", GetProgress);
 router.post("/FetchTasks", FetchTasks);
+router.post("/SaveMessages", AddMessageHistory);
+router.post("/RefreshUser", RefreshUser);
 
 export default router;
