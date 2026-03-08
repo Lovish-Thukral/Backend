@@ -26,6 +26,14 @@ const riasecSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const taskSchema = new mongoose.Schema(
+{
+  title: String,
+  description: String
+},
+{ _id: false }
+);
+
 // SIFA scores
 const sifaSchema = new mongoose.Schema(
   {
@@ -44,10 +52,17 @@ const chapterSchema = new mongoose.Schema(
     day: Number,
     title: String,
     focus: String,
-    tasks: [String],
+   tasks: {
+    type: [taskSchema],
+    default: []
+  },
     completed : {
       type: Boolean,
       default: false
+    },
+    locked: {
+      type: Boolean,
+      default: true
     }
   },
   { _id: false }
