@@ -22,12 +22,15 @@ export async function CreateRoadmap(req, res) {
     const updatedUser = await User.findOneAndUpdate(
       { name },
       {
-        $push: {                              // $push because roadmapHistory is an array
-          roadmapHistory: {
-            topic: roadmap.requested_field || goal.field_query || goal,
-            progress: 0,
-            units: roadmap.units,
-          },
+        $set: {                             
+          
+          roadmapHistory: [
+            {
+              topic: roadmap.requested_field || goal.field_query || goal,
+              progress: 0,
+              units: roadmap.units,
+            },
+          ],
         },
       },
       { new: true }
